@@ -664,7 +664,7 @@ Thus, the MPC problem with the terminal set $\chi_f\cap X_{LQR}$ also yields an 
 
 \subsection{Task 17: Simulation of Scenario 2 Using MPC Controller 3 (2 pt.)}
 
-Figure \ref{fig:15} shows the simulation plot of scenario 2 with initial condition 1 using MPC controller 3. We notice that start from 42 minutes after the start of simulation, the MPC controller becomes infeasible. The heating unit stops working and the cooling units work in full power, which results in the huge drop of the temperatures in the building and the vaccinations. 
+Figure \ref{fig:15} shows the simulation plot of scenario 2 with initial condition 1 using MPC controller 3. We notice that start from 42 minutes after the start of simulation, the MPC controller becomes infeasible. The heating unit stops working and the cooling units work in full power, which results in the huge drop of the temperatures in the building and the vaccinations. In scenario 1, we assume that the disturbances are constant, but obviously it is not always the case, so in scenario 2, the disturbances vary with time. As a result, the MPC controller designed for the stationary disturbance doesn't deliver a satisfactory output. 
 
 \begin{figure}[ht]
 \centering
@@ -673,27 +673,258 @@ Figure \ref{fig:15} shows the simulation plot of scenario 2 with initial conditi
 \label{fig:15}
 \end{figure}
 
+\subsection{Task 18: Soft-constrained MPC Controller (4 pt.)}
+
+Figure \ref{fig:16} shows the simulation plot of scenario 2 using soft-constrained MPC controller. We notice that even if the initial condition at some time step is out of the feasible range, the soft-constrained MPC controller can still produce a reasonable input that drives the system to the steady state. Here we introduce slack variables $\epsilon_i$ to relax the state constraints and use the linear penalty $I_\epsilon(\epsilon) = v \cdot ||\epsilon||_1$ in the cost function. By choosing different $v$ values, we find out that the soft-constrained MPC controller will result in the same control input. The optimizer will choose $\epsilon_i$ such that the relaxed state constraints will not be violated, and it will keep the norm of $\epsilon_i$ as small as possible to reduce the optimization objective. No matter what $v$ we choose, the optimizer will take the same $\epsilon_i$ and also the input will be the same. 
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale = 0.58]{image/18.eps}
+\caption{Simulation of Scenario 2 with initial condition 1 Using Soft-constrained MPC Controller}
+\label{fig:16}
+\end{figure}
+
+\subsection{Task 19: Comparison of Simulation under Scenario 1 Between MPC Controller 3 and 4 (1 pt.)}
+
+Figure \ref{fig:17} and \ref{fig:18} shows the simulation plots under scenario 1 using the nominal and soft-constrained MPC controller. They are identical and show that if the initial state is within the feasible range, the soft-constrained MPC controller will produce the same result as the nominal MPC controller, as all slack variables equal to 0.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale = 0.58]{image/19-1.eps}
+\caption{Simulation under Scenario 1 Using MPC Controller}
+\label{fig:17}
+\end{figure}
+
+\newpage
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale = 0.58]{image/19-2.eps}
+\caption{Simulation under Scenario 1 Using Soft-constrained MPC Controller}
+\label{fig:18}
+\end{figure}
+
+\subsection{Task 20: Incorporate Future Disturbances into the Soft-constrained MPC Controller (2 pt.)}
+
+Figure \ref{fig:19} shows the simulation plots under scenario 2 using the soft-constrained MPC controller with (blue) and without (other colors) future disturbance incorporation. By observing the disturbance in \verb|scen2|, we noticed that there are values at some time step whose absolute values are much larger than the rest of the values, so we decided to captures these features in the  disturbance matrix defined. 
+
+We noticed that \verb|d_VC_scen| will have a huge decrease from 36 to 50 minutes with the expected value $-1.2\times10^{4}$, \verb|d_F1_scen| will have a huge increase from 37 to 43 minutes with the expected value $5.5\times 10^{3}$, \verb|d_F2_scen| will have a huge increase from 37 to 43 minutes with the expected value $1\times 10^{3}$. Thus, we could use the observation to define the disturbance matrix and set other values to 0. 
+
+The MPC controller yields a even better performance since all state constraints will not be violated. The reason is mainly that in the soft-constrained MPC controller, we have a better dynamic model of the system which incorporated the expected future disturbances. As a result, the MPC controller will take the disturbances into account and yield an input that will drive the system without violating the state constraints even under the situation of disturbance. 
 
 
+\begin{figure}[ht]
+\centering
+\includegraphics[scale = 0.58]{image/20.eps}
+\caption{Simulation under Scenario 1 Using Soft-constrained MPC Controller with (blue) and without (other colors) Future Disturbances}
+\label{fig:19}
+\end{figure}
+
+\newpage
+
+%--------------------------------------------------------------------
+
+\section{Offset-free MPC}
+
+\subsection{Task 21: Augmented model (2 pt.)}
+
+The nominal dynamics we have from the previous tasks is
+\begin{equation}
+    \begin{split}
+        T(k+1) &= AT(k)+Bp(k)+B_d d \\
+        y(k) &= T(k)
+    \end{split}
+\end{equation}
+
+And here we can model the constant disturbance $\Bar{d}$ as a variable so that it can be observed. 
+\begin{equation}
+    \begin{split}
+        T(k+1) &= AT(k)+Bp(k)+B_d d(k) \\
+        d(k+1) &= d(k) \\
+        y(k) &= T(k)
+    \end{split}
+\end{equation}
+
+By reformulating it, we have
+\begin{equation}
+    \begin{split}
+        \begin{bmatrix}
+        T(k+1) \\
+        d(k+1)
+        \end{bmatrix}
+        &=A_{aug}
+        \begin{bmatrix}
+        T(k) \\
+        d(k)
+        \end{bmatrix}
+        +
+        B_{aug}p(k) \\
+        y(k) &=
+        C_{aug}
+        \begin{bmatrix}
+        T(k) \\
+        d(k)
+        \end{bmatrix}
+        + D_{aug}p(k)
+    \end{split}
+\end{equation}
+
+where 
+\begin{equation*}
+    A_{aug} = \begin{bmatrix}
+    A & B_d \\
+    0 & I
+    \end{bmatrix}, 
+    B_{aug} = \begin{bmatrix}
+    B \\
+    0
+    \end{bmatrix}, 
+    C_{aug} = \begin{bmatrix}
+    I & 0
+    \end{bmatrix}, 
+    D_{aug} = 0
+\end{equation*}
 
 
+\subsection{Task 22: The Linear Observer Design (2 pt.)}
+
+The linear observer will take the form 
+\begin{equation}
+    \begin{bmatrix}
+    \hat{T}(k+1)\\
+    \hat{d}(k+1)
+    \end{bmatrix}
+    = A_{aug}
+    \begin{bmatrix}
+    \hat{T}(k)\\
+    \hat{d}(k)
+    \end{bmatrix}
+    + B_{aug}p(k)
+    + L\left(y(k)-C_{aug}\begin{bmatrix}
+    \hat{T}(k)\\
+    \hat{d}(k)\end{bmatrix}\right)
+\end{equation}
+
+The error dynamics is
+\begin{equation}
+    \begin{split}
+        \begin{bmatrix}
+        T(k+1)-\hat{T}(k+1)\\
+        d(k+1)-\hat{d}(k+1)
+        \end{bmatrix}
+        &=
+        A_{aug}
+        \begin{bmatrix}
+        T(k)-\hat{T}(k)\\
+        d(k)-\hat{d}(k)
+        \end{bmatrix}
+        -LC_{aug}
+        \begin{bmatrix}
+        T(k)-\hat{T}(k)\\
+        d(k)-\hat{d}(k)
+        \end{bmatrix} \\
+        &=
+        (A_{aug}-LC_{aug})
+        \begin{bmatrix}
+        T(k)-\hat{T}(k)\\
+        d(k)-\hat{d}(k)
+        \end{bmatrix}
+    \end{split}
+\end{equation}
+
+Here our goal is to choose $L$ such that the error dynamics are stable and converge to zero. Thus, we use the \verb|place()| function in MATLAB to place the eigenvalues of $A_{aug}-LC_{aug}$ to $[0.8, 0.8, 0.8, 0.0, 0.0, 0.0]$. 
+
+Using the steady state condition we have
+\begin{equation}
+    T_s = T_{Target}
+\end{equation}
+\begin{equation}
+    T_s = AT_s + Bp_s +B_d \hat{d}
+\end{equation}
+
+where $\hat{d}$ is the current estimation of disturbance, which is also the best forecast for steady state disturbance. $T_{Target} = [25, -42, -18.5]^\top$ is the constant reference we want to track.
+
+It is easy to reformulate it as
+
+\begin{equation}
+    \begin{bmatrix}
+    A-I & B \\
+    I & 0
+    \end{bmatrix}
+    \begin{bmatrix}
+    T_s \\
+    p_s
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+    -B_d \hat{d} \\
+    T_{Target}
+    \end{bmatrix}
+\end{equation}
 
 
+\subsection{Task 23: Simulation Using the Offset-free MPC Controller (6 pt.)}
+
+At each time step, we need to first estimate the state $\hat{T}(k)$ and disturbance $\hat{d}(k)$ using the linear observer, and then compute the steady-state $T_s$ and its input $p_s$ based on the estimated disturbance $\hat{d}(k)$ as shown in the previous question. And here we denote
+\begin{equation*}
+    x(k) = \Delta T(k) = T(k) - T_s
+\end{equation*}
+\begin{equation*}
+    u(k) = \Delta p(k) = p(k) - p_s
+\end{equation*}
+
+The system dynamics will be
+\begin{equation}
+    x(k+1) = Ax(k) + Bu(k)
+\end{equation}
+
+Then the Offset-free Tracking MPC problem will be like
+\begin{equation}
+\begin{split}
+    min_U & \sum_{i=0}^{N-1}x_i^\top Q x_i+u_i^\top R u_i + I_f(x_{N}) \\
+    s.t. \quad & x_0 = \hat{x}(k) = \hat{T}(k) - T_s \\
+    & d_0 = \hat{d}(k) \\
+    & x_{i+1} = Ax_i + Bu_i + B_d d_i \\
+    & d_{i+1} = d_i \\
+    & x_{min} \le x_i \le x_{max} \\
+    & u_{min} \le u_i \le u_{max} \\
+    & x_N \in X_{LQR}
+\end{split}
+\end{equation}
+
+Figure \ref{fig:20} and \ref{fig:21} show the simulation plot under scenario 3 using offset-free MPC controller and the vanilla MPC controller (MPC controller 3). 
+
+When dealing with unknown but almost constant disturbance, the offset-free MPC controller will have a much better performance. We can observe that the temperatures in the vaccinations will converge really soon and the convergence of the building temperature is not affected by the disturbance. However, the vanilla MPC controller can not drive the system converge to the reference temperatures without offset. This is mainly because the system model implemented in the vanilla MPC controller is not accurate in the lack of disturbance. 
+
+\newpage
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale = 0.58]{image/23-1.eps}
+\caption{Simulation Under Scenario 3 Using Offset-free MPC Controller}
+\label{fig:20}
+\end{figure}
+
+\newpage
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale = 0.58]{image/23-2.eps}
+\caption{Simulation Under Scenario 3 Using Vanilla MPC Controller}
+\label{fig:21}
+\end{figure}
+
+\newpage
+
+%-----------------------------------------------------------------
+
+\section{FORCES Pro}
+
+\subsection{Task 24: MPC Implementation with FORCES Pro (3 pt.)}
 
 
+We can simply change the \verb|optimizer()| to \verb|optimizerFORCES()|, and modify the solver options to implement the FORCES Pro solver. By running the simulation under scnenario 1 with initial condition 2 using MPC controller 1, we can get the running times for the controllers. 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+The controller 1 using FORCES Pro will have running time 0.078119 s, while the original controller will have running time 1.645772 s. It is obvious that the controller using FORCES Pro is extremely faster than that using the MATLAB implemented optimizer. 
 
 \end{document}
